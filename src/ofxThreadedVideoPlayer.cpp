@@ -41,6 +41,12 @@ void ofxThreadedVideoPlayer::setVolume(float v){
 	}
 }
 
+void ofxThreadedVideoPlayer::setShouldLoadAudio(bool doLoadAudio)
+{
+    if(player){
+        player->setShouldLoadAudio(doLoadAudio);
+    }
+}
 
 void ofxThreadedVideoPlayer::deleteMe(){
 	//ofLogWarning() << "ofxThreadedVideoPlayer:deleteMe() " << this << endl;
@@ -212,6 +218,12 @@ void ofxThreadedVideoPlayer::setPosition(float percent){
 	}
 }
 
+void ofxThreadedVideoPlayer::setExactPosition(float percent){
+    if(player){
+        player->setExactPosition( ofClamp(percent,0.0f,1.0f) );
+    }
+}
+
 float ofxThreadedVideoPlayer::getPosition(){
 	if(player){
 		float p = player->getPosition();
@@ -229,3 +241,20 @@ float ofxThreadedVideoPlayer::getDuration(){
 	return 0;
 }
 
+int ofxThreadedVideoPlayer::getTotalNumFrame()
+{
+    if(player){
+        float d = player->getTotalNumFrames();
+        return d;
+    }
+    return 0;
+}
+
+bool ofxThreadedVideoPlayer::isFrameNew()
+{
+    if(player){
+        bool b = player->isFrameNew();
+        return b;
+    }
+    return false;
+}

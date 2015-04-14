@@ -22,15 +22,15 @@
     AVPlayerItem * _playerItem;
 
     // New school video stuff
-    id _playerItemVideoOutput;
+    AVPlayerItemVideoOutput * _playerItemVideoOutput;
     CVOpenGLTextureCacheRef _textureCache;
-	CVOpenGLTextureRef _latestTextureFrame;
-	CVPixelBufferRef _latestPixelFrame;
+    CVOpenGLTextureRef _latestTextureFrame;
+    CVPixelBufferRef _latestPixelFrame;
 
     // Old school video stuff
     CARenderer * _layerRenderer;
     
-	BOOL _useTexture;
+    BOOL _useTexture;
     BOOL _useAlpha;
     
     CGSize _videoSize;
@@ -43,14 +43,18 @@
     
     BOOL _bLoading;
     BOOL _bLoaded;
+    BOOL _bShouldLoadAudio;
     BOOL _bAudioLoaded;
     BOOL _bPaused;
     BOOL _bMovieDone;
-    	
+    
     // New school audio stuff
     NSMutableData *_amplitudes;
     int _numAmplitudes;
-    id _periodicTimeObserver;
+    __block id _periodicTimeObserver;  // dont copy that, use it directly in the block
+    
+    AVAssetReader* assetReader;
+    dispatch_queue_t evQ;
 }
 
 @property (nonatomic, retain) AVPlayer * player;
@@ -62,6 +66,7 @@
 
 @property (nonatomic, assign, readonly, getter = isLoading) BOOL bLoading;
 @property (nonatomic, assign, readonly, getter = isLoaded) BOOL bLoaded;
+@property (nonatomic, assign) BOOL shouldLoadAudio;
 @property (nonatomic, assign, readonly, getter = isAudioLoaded) BOOL bAudioLoaded;
 @property (nonatomic, assign, getter = isPaused, setter = setPaused:) BOOL bPaused;
 @property (nonatomic, assign, readonly, getter = isMovieDone) BOOL bMovieDone;
@@ -80,6 +85,7 @@
 @property (nonatomic, assign) double currentTime;
 @property (nonatomic, assign) int currentFrame;
 @property (nonatomic, assign) double position;
+@property (nonatomic, assign) double exactPosition;
 @property (nonatomic, assign) double playbackRate;
 @property (nonatomic, assign, getter = loops, setter = setLoops:) BOOL bLoops;
 @property (nonatomic, assign) float volume;
@@ -102,5 +108,9 @@
 
 // Old school video stuff
 - (void)render;
+
+// do some cleanup
+- (void)cleanup;
+- (void)finalize;
 
 @end

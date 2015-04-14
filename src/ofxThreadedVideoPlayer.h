@@ -41,9 +41,12 @@ public:
 	bool hasFinished();
 
 	void setPosition(float percent);
+    void setExactPosition(float percent);
 	float getPosition();
 	float getDuration();
+    int getTotalNumFrame();
 
+    void setShouldLoadAudio(bool doLoadAudio);
 	void setVolume(float v);
 
 	bool isReadyForPlayback();
@@ -55,6 +58,8 @@ public:
 	void drawDebug(float x, float y);
 	void update();
 
+    bool isFrameNew();
+    
 	float getWidth();
 	float getHeight();
 

@@ -14,7 +14,7 @@
 #import "ofxAVFVideoRenderer.h"
 #endif
 
-class ofxAVFVideoPlayer  : public ofBaseVideoPlayer {
+class ofxAVFVideoPlayer  : public ofBaseVideoPlayer, public ofBaseDraws {
     
 public:
     
@@ -35,7 +35,7 @@ public:
     float               getAmplitudeAt(float pos, int channel = 0);
     float *             getAllAmplitudes();
     int                 getNumAmplitudes();
-	
+    
     bool                isFrameNew(); //returns true if the frame has changed in this update cycle
     
     // Returns openFrameworks compatible RGBA pixels.
@@ -52,6 +52,8 @@ public:
     
     bool                isLoading();
     bool                isLoaded();
+    bool                shouldLoadAudio();
+    void                setShouldLoadAudio(bool doLoadAudio);
     bool                isAudioLoaded();
     bool                errorLoading();
     
@@ -70,7 +72,8 @@ public:
     float               getVolume();
     
     void                setPosition(float pct);
-	void                setTime(float seconds);
+    void                setExactPosition(float pct);
+    void                setTime(float seconds);
     void                setPositionInSeconds(float seconds);
     void                setFrame(int frame); // frame 0 = first frame...
     void                setBalance(float balance);
@@ -100,9 +103,10 @@ protected:
     bool bTheFutureIsNow;
     
     bool bPaused;
-	bool bShouldPlay;
-	
-	float scrubToTime;
+    bool bShouldPlay;
+    bool bShouldLoadAudio;
+    
+    float scrubToTime;
     bool bNewFrame;
     bool bHavePixelsChanged;
     

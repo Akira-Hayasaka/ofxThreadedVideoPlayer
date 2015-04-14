@@ -13,11 +13,11 @@
 ofxAVFVideoPlayer::ofxAVFVideoPlayer()
 {
     moviePlayer = NULL;
-	bNewFrame = false;
+    bNewFrame = false;
     bPaused = true;
-	duration = 0.0f;
+    duration = 0.0f;
     speed = 1.0f;
-	
+    
     scrubToTime = 0.0;
     bInitialized = false;
     
@@ -25,12 +25,13 @@ ofxAVFVideoPlayer::ofxAVFVideoPlayer()
     currentLoopState = OF_LOOP_NORMAL;
     
     bTheFutureIsNow = false;
+    bShouldLoadAudio = true; // maybe: change previous default behaviour: explicitly wanting to load audio
 }
 
 //--------------------------------------------------------------
 ofxAVFVideoPlayer::~ofxAVFVideoPlayer()
 {
-	close();
+    close();
 }
 
 //--------------------------------------------------------------
@@ -40,16 +41,17 @@ bool ofxAVFVideoPlayer::loadMovie(string path)
     if (bInitialized) {
         close();
     }
-	
-	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-	
+    
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+    
     moviePlayer = [[AVFVideoRenderer alloc] init];
     [moviePlayer setUseAlpha:(pixelFormat == OF_PIXELS_RGBA)];
     [moviePlayer setUseTexture:YES];
+    [moviePlayer setShouldLoadAudio:bShouldLoadAudio];
     
     bTheFutureIsNow = moviePlayer.theFutureIsNow;
 
-	if (Poco::icompare(path.substr(0, 7), "http://")  == 0 ||
+    if (Poco::icompare(path.substr(0, 7), "http://")  == 0 ||
         Poco::icompare(path.substr(0, 8), "https://") == 0 ||
         Poco::icompare(path.substr(0, 7), "rtsp://")  == 0) {
         [moviePlayer loadURLPath:[NSString stringWithUTF8String:path.c_str()]];
@@ -58,7 +60,7 @@ bool ofxAVFVideoPlayer::loadMovie(string path)
         path = ofToDataPath(path, false);
         [moviePlayer loadFilePath:[NSString stringWithUTF8String:path.c_str()]];
     }
-	[pool release];
+    [pool release];
     
     bShouldPlay = false;
     return true;
@@ -74,12 +76,16 @@ void ofxAVFVideoPlayer::closeMovie()
 void ofxAVFVideoPlayer::close()
 {
     pixels.clear();
-	
+    
     if (moviePlayer != nil) {
-		NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-        [moviePlayer autorelease];
+        NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+        
+        // finalize the movieplayer
+        // if loading audio and it never got played timeObserver retains moviePlayer
+        // using a finalizeing solves this
+        [moviePlayer finalize];
         moviePlayer = nil;
-		[pool release];
+        [pool release];
 
     }
     
@@ -109,14 +115,14 @@ void ofxAVFVideoPlayer::update()
             bInitialized = true;
 
             if (scrubToTime != 0.0f) {
-				setTime(scrubToTime);
-				scrubToTime = 0.0f;
-			}
+                setTime(scrubToTime);
+                scrubToTime = 0.0f;
+            }
             
-			if (bShouldPlay){
-				play();
-				bShouldPlay = false;
-			}
+            if (bShouldPlay){
+                play();
+                bShouldPlay = false;
+            }
         }
         
         if (bTheFutureIsNow) {
@@ -139,13 +145,13 @@ void ofxAVFVideoPlayer::update()
 //--------------------------------------------------------------
 void ofxAVFVideoPlayer::play()
 {
-	if (bInitialized) {
+    if (bInitialized) {
         ofLogVerbose("ofxAVFVideoPlayer::play()") << "Initialized and playing at time " << getCurrentTime();
-		[moviePlayer play];
-	}
-	else {
-		bShouldPlay = true;
-	}
+        [moviePlayer play];
+    }
+    else {
+        bShouldPlay = true;
+    }
 }
 
 //--------------------------------------------------------------
@@ -243,7 +249,7 @@ ofPixelsRef ofxAVFVideoPlayer::getPixelsRef()
         getPixels();
     }
     
-	return pixels;
+    return pixels;
 }
 
 //--------------------------------------------------------------
@@ -286,6 +292,18 @@ bool ofxAVFVideoPlayer::isLoading()
 bool ofxAVFVideoPlayer::isLoaded()
 {
     return bInitialized;
+}
+
+//--------------------------------------------------------------
+bool ofxAVFVideoPlayer::shouldLoadAudio()
+{
+    return bShouldLoadAudio;
+}
+
+//--------------------------------------------------------------
+void ofxAVFVideoPlayer::setShouldLoadAudio(bool doLoadAudio)
+{
+    bShouldLoadAudio = doLoadAudio;
 }
 
 //--------------------------------------------------------------
@@ -373,7 +391,7 @@ ofLoopType ofxAVFVideoPlayer::getLoopState()
     if (moviePlayer && [moviePlayer loops])
         return OF_LOOP_NORMAL;
     
-	return OF_LOOP_NONE;
+    return OF_LOOP_NONE;
 }
 
 //--------------------------------------------------------------
@@ -393,15 +411,22 @@ void ofxAVFVideoPlayer::setPosition(float pct)
 }
 
 //--------------------------------------------------------------
+void ofxAVFVideoPlayer::setExactPosition(float pct)
+{
+    [moviePlayer setExactPosition:pct];
+}
+
+
+//--------------------------------------------------------------
 void ofxAVFVideoPlayer::setTime(float position)
 {
-	if (![moviePlayer isLoaded]) {
-		ofLogNotice("ofxAVFVideoPlayer::setCurrentTime()") << "Video player not ready, declaring to scrub to time " << scrubToTime;
-		scrubToTime = position;
-	}
-	else {
+    if (![moviePlayer isLoaded]) {
+        ofLogNotice("ofxAVFVideoPlayer::setCurrentTime()") << "Video player not ready, declaring to scrub to time " << scrubToTime;
+        scrubToTime = position;
+    }
+    else {
         [moviePlayer setCurrentTime:position];
-	}
+    }
 }
 
 //--------------------------------------------------------------
@@ -438,7 +463,14 @@ void ofxAVFVideoPlayer::setPaused(bool bPaused)
 void ofxAVFVideoPlayer::setLoopState(ofLoopType state)
 {
     if (moviePlayer) {
-        [moviePlayer setLoops:(state == OF_LOOP_NORMAL)];
+//        [moviePlayer setLoops:(state == OF_LOOP_NORMAL)];
+        
+        if(state == OF_LOOP_NONE){
+            [moviePlayer setLoops:false];
+        }
+        else if(state == OF_LOOP_NORMAL){
+            [moviePlayer setLoops:true];
+        }
     }
     
     if (state == OF_LOOP_PALINDROME) {
@@ -468,7 +500,7 @@ bool ofxAVFVideoPlayer::setPixelFormat(ofPixelFormat newPixelFormat)
             loadMovie(moviePath);
         }
     }
-	return true;
+    return true;
 }
 
 //--------------------------------------------------------------
@@ -540,17 +572,17 @@ void ofxAVFVideoPlayer::updateTexture()
     if (bTheFutureIsNow == false) return;
     
     if (moviePlayer.textureAllocated) {
-		tex.setUseExternalTextureID(moviePlayer.textureID);
-		
-		ofTextureData& data = tex.getTextureData();
-		data.textureTarget = moviePlayer.textureTarget;
-		data.width = getWidth();
-		data.height = getHeight();
-		data.tex_w = getWidth();
-		data.tex_h = getHeight();
-		data.tex_t = getWidth();
-		data.tex_u = getHeight();
-	}
+        tex.setUseExternalTextureID(moviePlayer.textureID);
+        
+        ofTextureData& data = tex.getTextureData();
+        data.textureTarget = moviePlayer.textureTarget;
+        data.width = getWidth();
+        data.height = getHeight();
+        data.tex_w = getWidth();
+        data.tex_h = getHeight();
+        data.tex_t = getWidth();
+        data.tex_u = getHeight();
+    }
 }
 
 //--------------------------------------------------------------
